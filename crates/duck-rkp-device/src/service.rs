@@ -151,7 +151,6 @@ pub(crate) struct ProvisionData {
     pub local_verify: Option<VerifyReport>,
     pub chain: ChainSummary,
     pub device_id: String,
-    pub keybox_xml: String,
     pub artifacts: ArtifactPaths,
     pub prerequisites: DeviceStatus,
 }
@@ -310,7 +309,6 @@ fn report(
         local_verify: signed.local_verify,
         chain: ChainSummary::of(&artifacts.chain),
         device_id: artifacts.device_id.clone(),
-        keybox_xml: artifacts.keybox_xml.clone(),
         artifacts: artifacts.paths.clone(),
         prerequisites,
     }

@@ -101,7 +101,8 @@ async fn explicit_native_backup_exports_a_keybox_without_aidl_or_a_signature_cla
             .len(),
         2
     );
-    let summary = duck_tricky_store::keybox::validate::validate(&data.keybox_xml).unwrap();
+    let exported_xml = std::fs::read_to_string(&data.artifacts.keybox_path).unwrap();
+    let summary = duck_tricky_store::keybox::validate::validate(&exported_xml).unwrap();
     assert_eq!(summary.chain_lengths, vec![2]);
     assert!(PathBuf::from(data.artifacts.private_key_path).is_file());
 }

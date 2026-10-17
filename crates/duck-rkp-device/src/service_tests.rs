@@ -412,8 +412,14 @@ async fn provision_completes_the_round_trip_and_writes_artifacts() {
         ["CN=duck-test-leaf", "CN=duck-test-root"]
     );
     assert!(data.device_id.starts_with("QTI-"));
+    // A successful public JSON response must not embed the software private key.
+    let response = serde_json::to_string(&data).unwrap();
+    assert!(!response.contains("BEGIN EC PRIVATE KEY"));
+    assert!(!response.contains("AndroidAttestation"));
+    assert!(!response.contains("keybox_xml"));
     // The whole chain reaches the keybox, and the daemon validator accepts it.
-    let summary = duck_tricky_store::keybox::validate::validate(&data.keybox_xml).unwrap();
+    let exported_xml = fs::read_to_string(&data.artifacts.keybox_path).unwrap();
+    let summary = duck_tricky_store::keybox::validate::validate(&exported_xml).unwrap();
     assert_eq!(summary.chain_lengths, vec![2]);
     assert!(summary.counts_declared_correctly);
 
@@ -493,7 +499,8 @@ async fn provision_mirrors_the_keybox_to_an_explicit_output() {
     .unwrap();
 
     assert_eq!(data.artifacts.keybox_path, output.display().to_string());
-    assert_eq!(fs::read_to_string(&output).unwrap(), data.keybox_xml);
+    let private_copy = PathBuf::from(&data.artifacts.run_dir).join("keybox.xml");
+    assert_eq!(fs::read_to_string(&output).unwrap(), fs::read_to_string(private_copy).unwrap());
     // The run directory keeps its own copy, so the report never points at a stale file.
     assert!(PathBuf::from(&data.artifacts.run_dir).is_dir());
 }

@@ -56,3 +56,7 @@ This is a review of the public Telegram announcement (2026-10-16/17), the upstre
 - [AOSP KeyMint RPC documentation](https://android.googlesource.com/platform/hardware/interfaces/+/f75880001f/security/keymint/RKP_README.md)
 - [Upstream Duck ToolBox](https://github.com/eltavine/Duck-ToolBox)
 - [Kanxue write-up reference](https://bbs.kanxue.com/thread-293244.htm)
+
+## 7. JSON is not a key export
+
+The device-issuer's `ProvisionData` must never inline the `keybox.xml` private key into a CLI or WebUI JSON success response. The fork now returns **paths and non-secret summaries only** (contract 6). Privileged callers can access the secret file at `artifacts.keybox_path` when they explicitly install or export it. This prevents accidental disclosure through copied JSON output, debugging consoles and UI transport traces; it does not eliminate the intrinsic risk of software key export. The daemon's structured log already stores a short command summary rather than full JSON.

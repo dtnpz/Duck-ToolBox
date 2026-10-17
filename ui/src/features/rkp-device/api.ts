@@ -87,7 +87,6 @@ const provisionSchema = z
     local_verify: reportSchema.nullable(),
     chain: chainSummarySchema,
     device_id: z.string(),
-    keybox_xml: z.string(),
     artifacts: artifactPathsSchema,
     prerequisites: deviceStatusSchema,
   })

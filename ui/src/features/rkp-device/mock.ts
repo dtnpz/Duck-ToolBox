@@ -159,7 +159,6 @@ const mock: MockModule = {
           subjects: ["CN=5f8e3c…,O=TEE", "CN=Droid CA3", "CN=Droid CA2", "CN=Key Attestation CA1"],
         },
         device_id: "Qualcomm-7c1f9a3b2d40",
-        keybox_xml: '<?xml version="1.0"?>\n<AndroidAttestation>…</AndroidAttestation>',
         artifacts: {
           run_dir: OUT,
           keybox_path: `${OUT}/keybox.xml`,

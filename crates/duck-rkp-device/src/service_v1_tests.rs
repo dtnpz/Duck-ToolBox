@@ -91,7 +91,8 @@ async fn legacy_round_trip_exports_a_keybox_without_claiming_local_signature_ver
         let json = serde_json::to_value(&data).unwrap();
         assert!(json["local_verify"].is_null());
         assert_eq!(json["csr_protocol"], "v1");
-        let summary = duck_tricky_store::keybox::validate::validate(&data.keybox_xml).unwrap();
+        let exported_xml = std::fs::read_to_string(&data.artifacts.keybox_path).unwrap();
+    let summary = duck_tricky_store::keybox::validate::validate(&exported_xml).unwrap();
         assert_eq!(summary.chain_lengths, vec![2]);
         assert!(
             fs::read_to_string(&data.artifacts.private_key_path)

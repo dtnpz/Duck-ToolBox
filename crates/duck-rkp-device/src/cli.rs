@@ -9,7 +9,7 @@ pub static FEATURE: ClapFeature<Command> = ClapFeature::new(
     FeatureInfo {
         id: "rkp-device",
         summary: "Device-backed RKP issuance on compatible Qualcomm KeyMint firmware",
-        contract: 5,
+        contract: 6,
     },
     dispatch,
 );
