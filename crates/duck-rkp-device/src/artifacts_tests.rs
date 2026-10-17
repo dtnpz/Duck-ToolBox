@@ -3,7 +3,9 @@ use std::fs;
 use duck_core::AppPaths;
 use p256::SecretKey as P256SecretKey;
 use pkcs8::DecodePrivateKey as _;
-use rcgen::{BasicConstraints, CertificateParams, IsCa, KeyPair, KeyUsagePurpose, PKCS_ECDSA_P256_SHA256};
+use rcgen::{
+    BasicConstraints, CertificateParams, IsCa, KeyPair, KeyUsagePurpose, PKCS_ECDSA_P256_SHA256,
+};
 
 use super::{
     ArtifactPaths, Inputs, MAX_CHAIN_CERTIFICATES, ParsedCertificate, device_id,
@@ -586,7 +588,10 @@ fn rejects_a_tampered_leaf_signature_without_publishing_any_keybox() {
     .unwrap_err();
     assert_eq!(crate::error::code_of(&error), "invalid_device_csr");
     assert!(error.to_string().contains("certificate path verification"));
-    assert!(!paths.outputs_dir.exists() || fs::read_dir(paths.outputs_dir).unwrap().next().is_none());
+    let output_count = fs::read_dir(&paths.outputs_dir)
+        .map(|entries| entries.count())
+        .unwrap_or(0);
+    assert_eq!(output_count, 0, "a rejected signature must not publish a keybox");
 }
 
 #[test]
