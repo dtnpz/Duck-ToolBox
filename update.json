@@ -1,6 +1,6 @@
 {
-  "versionCode": 74,
-  "version": "0.1.4-stable",
-  "zipUrl": "https://github.com/eltavine/Duck-ToolBox/releases/download/v0.1.4-stable/duck-toolbox-0.1.4-stable.zip",
-  "changelog": "https://raw.githubusercontent.com/eltavine/Duck-ToolBox/main/CHANGELOG.md"
+  "versionCode": 1075,
+  "version": "0.1.4-dtnpz.1",
+  "zipUrl": "https://github.com/dtnpz/Duck-ToolBox/releases/download/v0.1.4-dtnpz.1/duck-toolbox-0.1.4-dtnpz.1.zip",
+  "changelog": "https://raw.githubusercontent.com/dtnpz/Duck-ToolBox/main/docs/DTNPZ_CHANGELOG.md"
 }

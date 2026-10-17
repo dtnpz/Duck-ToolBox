@@ -1,3 +1,5 @@
+> **dtnpz edition (0.1.4-dtnpz.1)** — Personal fork of [eltavine/Duck-ToolBox](https://github.com/eltavine/Duck-ToolBox). Preserves upstream's MIT license, module ID and RKP implementation. Adds a **read-only joyeuse/miatoll compatibility diagnostic** and separate update channel. See [fork notes](docs/DTNPZ-EDITION.md). This is not an official upstream release.
+
 # Duck ToolBox
 
 Duck ToolBox is a root module (KernelSU, APatch or Magisk) that puts several Android
