@@ -141,9 +141,9 @@ pub(crate) fn prepare(
                 .find(|candidate| candidate.der == certificate.der)
                 .cloned()
                 .ok_or_else(|| {
-                    DeviceRkpError::InvalidCsr(
+                    anyhow::Error::new(DeviceRkpError::InvalidCsr(
                         "verified certificate missing from parsed DER stream".into(),
-                    )
+                    ))
                 })
         })
         .collect::<Result<Vec<_>>>()?;
