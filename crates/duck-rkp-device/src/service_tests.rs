@@ -14,7 +14,6 @@ use rcgen::{
     CertificateParams, KeyPair as RcgenKeyPair, PKCS_ECDSA_P256_SHA256, PublicKeyData,
     SignatureAlgorithm,
 };
-use sha2::{Digest as _, Sha256};
 
 use super::{DeviceEnvironment, Environment, Exchange, KeySource, Options, Server, provision};
 use crate::{protocol, status::DeviceStatus};
@@ -164,21 +163,25 @@ impl rcgen::SigningKey for TestSigner {
     fn sign(&self, msg: &[u8]) -> Result<Vec<u8>, rcgen::Error> {
         use p256::ecdsa::signature::Signer as _;
 
-        let signature: p256::ecdsa::Signature = self.key.sign(&Sha256::digest(msg));
-        Ok(signature.to_bytes().to_vec())
+        let signature: p256::ecdsa::Signature = self.key.sign(msg);
+        Ok(signature.to_der().as_bytes().to_vec())
     }
 }
 
 /// A leaf for `signer` issued by a generated root, DER concatenated leaf first.
 fn issued_chain(signer: &TestSigner) -> Vec<u8> {
+    let mut root_params = named_params("duck-test-root");
+    root_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    root_params.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
     let root = rcgen::CertifiedIssuer::self_signed(
-        named_params("duck-test-root"),
+        root_params,
         RcgenKeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap(),
     )
     .unwrap();
-    let leaf = named_params("duck-test-leaf")
-        .signed_by(signer, &root)
-        .unwrap();
+    let mut leaf_params = named_params("duck-test-leaf");
+    leaf_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
+    leaf_params.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign];
+    let leaf = leaf_params.signed_by(signer, &root).unwrap();
     let mut chain = leaf.der().to_vec();
     chain.extend_from_slice(root.der());
     chain

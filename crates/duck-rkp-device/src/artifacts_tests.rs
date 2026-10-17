@@ -3,7 +3,7 @@ use std::fs;
 use duck_core::AppPaths;
 use p256::SecretKey as P256SecretKey;
 use pkcs8::DecodePrivateKey as _;
-use rcgen::{CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256};
+use rcgen::{BasicConstraints, CertificateParams, IsCa, KeyPair, KeyUsagePurpose, PKCS_ECDSA_P256_SHA256};
 
 use super::{
     ArtifactPaths, Inputs, MAX_CHAIN_CERTIFICATES, ParsedCertificate, device_id,
@@ -14,7 +14,10 @@ use super::{
 fn self_signed() -> (P256SecretKey, Vec<u8>) {
     let pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
     let secret = P256SecretKey::from_pkcs8_der(pair.serialized_der()).unwrap();
-    let certificate = CertificateParams::default().self_signed(&pair).unwrap();
+    let mut params = CertificateParams::default();
+    params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
+    params.key_usages = vec![KeyUsagePurpose::KeyCertSign];
+    let certificate = params.self_signed(&pair).unwrap();
     (secret, certificate.der().to_vec())
 }
 
@@ -42,17 +45,21 @@ fn params(common_name: &str) -> CertificateParams {
 fn two_level_chain() -> (P256SecretKey, Vec<u8>, Vec<u8>) {
     use rcgen::CertifiedIssuer;
 
+    let mut root_params = params("duck-test-root");
+    root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    root_params.key_usages = vec![KeyUsagePurpose::KeyCertSign];
     let root = CertifiedIssuer::self_signed(
-        params("duck-test-root"),
+        root_params,
         KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap(),
     )
     .unwrap();
 
     let leaf_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
     let secret = P256SecretKey::from_pkcs8_der(leaf_key.serialized_der()).unwrap();
-    let leaf = params("duck-test-leaf")
-        .signed_by(&leaf_key, &root)
-        .unwrap();
+    let mut leaf_params = params("duck-test-leaf");
+    leaf_params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
+    leaf_params.key_usages = vec![KeyUsagePurpose::KeyCertSign];
+    let leaf = leaf_params.signed_by(&leaf_key, &root).unwrap();
 
     (secret, leaf.der().to_vec(), root.der().to_vec())
 }
@@ -555,4 +562,60 @@ fn artifact_paths_stay_under_the_outputs_directory() {
 
     assert!(run_dir.starts_with(&paths.outputs_dir.display().to_string()));
     assert!(keybox_path.ends_with("keybox.xml"));
+}
+
+#[test]
+fn rejects_a_tampered_leaf_signature_without_publishing_any_keybox() {
+    let (secret, mut leaf, root) = two_level_chain();
+    // Changing a signature byte preserves DER structure and the public key but
+    // invalidates the cryptographic issuer-to-leaf link.
+    let last = leaf.len() - 1;
+    leaf[last] ^= 1;
+    let stream = [leaf, root].concat();
+    let dir = tempfile::tempdir().unwrap();
+    let paths = AppPaths::for_root(dir.path(), dir.path());
+    let error = write(
+        &paths,
+        Inputs {
+            secret_key: &secret,
+            csr: &[1, 2, 3],
+            cert_chain_der: &stream,
+            manufacturer: "QTI",
+        },
+    )
+    .unwrap_err();
+    assert_eq!(crate::error::code_of(&error), "invalid_device_csr");
+    assert!(error.to_string().contains("certificate path verification"));
+    assert!(!paths.outputs_dir.exists() || fs::read_dir(paths.outputs_dir).unwrap().next().is_none());
+}
+
+#[test]
+fn rejects_leaf_without_ca_authorization() {
+    use rcgen::CertifiedIssuer;
+    let mut root_params = params("root");
+    root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    root_params.key_usages = vec![KeyUsagePurpose::KeyCertSign];
+    let root = CertifiedIssuer::self_signed(
+        root_params,
+        KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap(),
+    )
+    .unwrap();
+    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
+    let secret = P256SecretKey::from_pkcs8_der(key.serialized_der()).unwrap();
+    let leaf = params("non-ca-leaf").signed_by(&key, &root).unwrap();
+    let stream = [leaf.der().as_ref(), root.der().as_ref()].concat();
+    let dir = tempfile::tempdir().unwrap();
+    let paths = AppPaths::for_root(dir.path(), dir.path());
+    let error = write(
+        &paths,
+        Inputs {
+            secret_key: &secret,
+            csr: &[1, 2, 3],
+            cert_chain_der: &stream,
+            manufacturer: "QTI",
+        },
+    )
+    .unwrap_err();
+    assert_eq!(crate::error::code_of(&error), "invalid_device_csr");
+    assert!(!paths.outputs_dir.exists());
 }

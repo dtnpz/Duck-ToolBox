@@ -114,11 +114,39 @@ pub(crate) fn prepare(
     cert_chain_der: Vec<u8>,
     manufacturer: &str,
 ) -> Result<Prepared> {
-    let chain = parse_der_cert_chain(&cert_chain_der)
+    let parsed = parse_der_cert_chain(&cert_chain_der)
         .map_err(|error| DeviceRkpError::InvalidCsr(format!("{error:#}")))?;
-    ensure_chain_matches_key(&chain, secret_key)?;
-    ensure_chain_is_linked(&chain)?;
-    let chain = keybox_order(&chain)?;
+    // Preserve a specific key-mismatch error, rather than reporting a generic
+    // malformed server chain when its certificates belong to another key.
+    if !parsed.iter().any(|cert| {
+        cert.public_key.as_deref() == Some(secret_key.public_key().to_sec1_bytes().as_ref())
+    }) {
+        return Err(DeviceRkpError::CertificateMismatch.into());
+    }
+    // X.509 names alone do not authenticate an issuer. Reuse the workbench's
+    // signature-, validity-, CA-, key-usage- and path-length-aware verifier.
+    // This also disambiguates same-name issuers and rejects stray certificates.
+    let verified = duck_rkp::certificates::select_chain_for_p256(
+        std::slice::from_ref(&cert_chain_der),
+        &secret_key.public_key().to_sec1_bytes(),
+    )
+    .map_err(|error| {
+        DeviceRkpError::InvalidCsr(format!("certificate path verification: {error:#}"))
+    })?;
+    let chain = verified
+        .iter()
+        .map(|certificate| {
+            parsed
+                .iter()
+                .find(|candidate| candidate.der == certificate.der)
+                .cloned()
+                .ok_or_else(|| {
+                    DeviceRkpError::InvalidCsr(
+                        "verified certificate missing from parsed DER stream".into(),
+                    )
+                })
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     let device_id = device_id(manufacturer)?;
     let keybox_xml =

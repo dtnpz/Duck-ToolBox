@@ -39,3 +39,11 @@ The fork keeps `id=duck-toolbox` and `/data/adb/duck-toolbox/var`. Save module s
 ## Credits and limits
 
 Upstream: Eltavine and other upstream contributors. MIT: [LICENSE](../LICENSE). Changes here are not endorsed by the upstream project. The certificate issuer requires compatible firmware, and even a successful RKP certificate does **not** guarantee a Play Integrity verdict.
+
+## Technical implementation and trust boundaries
+
+The source implementation is documented in [RKP_ORACLE_TECHNIQUE.md](RKP_ORACLE_TECHNIQUE.md). The Qualcomm-specific V2 command is `0x3122`; the native legacy V1 command is `0x311e`. Neither Android version nor an available library proves the vendor ABI is compatible. The challenge, public key and TA response must be bound before submission, while the eventual X.509 chain must independently match the private key and verify cryptographically.
+
+### Security fix added in this edition
+
+The device issuer formerly sorted certificates by X.509 issuer/subject **names** and checked that the P-256 leaf matched the locally generated key. Those checks alone did not verify the issuer signatures or CA constraints. Its artifact path now also calls the already-existing `duck_rkp::certificates::select_chain_for_p256` verifier, which checks certificate signatures, expiry, CA/key usage, path length, duplicate/unrelated certificates and key binding **before writing key material**. Synthetic test certificates were updated to valid attestation CA chains, and corrupted-signature/non-CA fixtures are explicitly rejected. This is an offline validation hardening, not a claim that Google or the TEE will accept a CSR.

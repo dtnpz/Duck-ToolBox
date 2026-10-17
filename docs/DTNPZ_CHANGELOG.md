@@ -7,5 +7,6 @@
 - Isolated fork update metadata, version numbering and GitHub release links.
 - Preserved upstream RKP behavior, module ID, and MIT attribution.
 - Added automated fork metadata and shell parsing smoke tests.
+- Hardened Device RKP Issuer certificate-path validation to use cryptographic signatures, CA/key-usage and validity checks before keybox export; added tampering regression tests.
 
 The upstream implementation still reports real-firmware compatibility and Google certificate issuance as unverified for relevant new backends.
